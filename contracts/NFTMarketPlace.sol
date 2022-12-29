@@ -29,6 +29,7 @@ contract NFTMarketPlace is ERC721URIStorage{
     address payable _owner;
     uint256 private _marketplaceCut;
 
+    //mapping
     mapping(address => address) private _admins;
     mapping(uint256 => ListingItemPublic) private listedNFTs;
 
@@ -39,13 +40,13 @@ contract NFTMarketPlace is ERC721URIStorage{
     }
 
     // modifier
-    modifier onlyOwners() {
-        require(_admins[_owner] == _msgSender(), "Ownable: caller is not the owner");
+      modifier onlyOwner() {
+        require(_owner == _msgSender(), "Ownable: caller is not the owner");
         _;
     }
 
-    modifier onlyOwner() {
-        require(_owner == _msgSender(), "Ownable: caller is not the owner");
+    modifier onlyOwners() {
+        require(_admins[_owner] == _msgSender(), "Ownable: caller is not the owner");
         _;
     }
 
@@ -54,37 +55,43 @@ contract NFTMarketPlace is ERC721URIStorage{
         _marketplaceCut = marketplaceCut_;
     }
     
+    //method to get the MarketplaceCut
     function getMarketplaceCut() public view returns (uint256) {
         return _marketplaceCut;
     }
 
+    //method to get the Current Token      
     function getCurrentToken() public view returns (uint256) {
         return _tokenIds.current();
     }
+
+    //method to add the new owners for the contract   
     function addOwners(address newOwner_) public onlyOwner{
         require(newOwner_ != address(0), "Address should not be 0");
         require(_admins[_owner] != newOwner_, "Address already exist");
         _admins[_owner]= newOwner_;
     }
 
+    //method to check the given address is in owners
     function isOwners(address owner_)public view returns(bool){
         return _admins[_owner] == owner_;
     }
 
-     function mintNFT(string memory tokenURI) public payable returns (uint) {
-        //  uint256 price
+    //method to mint the nft
+    function mintNFT(string memory tokenURI) public payable returns (uint) {
         _tokenIds.increment();
         uint256 newTokenId = _tokenIds.current();
         _safeMint(msg.sender, newTokenId);
         _setTokenURI(newTokenId, tokenURI);
-        // listedNFTForSale(newTokenId, price);
 
         return newTokenId;
     }
 
+    //method to list the nft for sale    
     function listedNFTForSale(uint256 tokenId, uint256 price) public {
+        require(ownerOf(tokenId) == msg.sender, "you do not have nft with given id");
         require(price > 0, "please provide valid price");
-
+        
         listedNFTs[tokenId] = ListingItemPublic(
             tokenId,
             payable(address(this)),
@@ -98,6 +105,7 @@ contract NFTMarketPlace is ERC721URIStorage{
         emit NFTListed(tokenId, address(this), msg.sender, price);
     }
 
+    //method to unlist the nft for sale   
     function unListedNFTForSale(uint256 tokenId) public {
         require(tokenId >= 0, "token id is invalid");
 
@@ -109,6 +117,7 @@ contract NFTMarketPlace is ERC721URIStorage{
         emit NFTRemoved(tokenId, address(this), msg.sender);
     }
 
+    //method to get all the nfts listed for sale on marketplace
     function getAllListedNFTs() public view returns (ListingItemPublic[] memory) {
         uint nftCount = _tokenIds.current();
         ListingItemPublic[] memory NFTs = new ListingItemPublic[](nftCount);
@@ -123,7 +132,8 @@ contract NFTMarketPlace is ERC721URIStorage{
         return NFTs;
     }
 
-     function getlistedNFTsByUser() public view returns (ListingItemPublic[] memory) {
+    //method to get listed nfts of current user
+    function getlistedNFTsByUser() public view returns (ListingItemPublic[] memory) {
         uint totalItemCount = _tokenIds.current();
         uint itemCount = 0;
         uint currentIndex = 0;
@@ -146,6 +156,7 @@ contract NFTMarketPlace is ERC721URIStorage{
         return tokens;
     }
 
+    //method to purchase the nft from marketplace
     function purchaseNFTFromSale(uint256 tokenId) public payable {
         uint price = listedNFTs[tokenId].price;
         address seller = listedNFTs[tokenId].seller;
@@ -160,6 +171,7 @@ contract NFTMarketPlace is ERC721URIStorage{
         payable(seller).transfer(amount);
     }
 
+    //internal method to remove the nfts from sale when someone purchase it
     function _removeForomSale(uint256 tokenId) internal {
         require(tokenId >= 0, "token id is invalid");
         delete listedNFTs[tokenId];
